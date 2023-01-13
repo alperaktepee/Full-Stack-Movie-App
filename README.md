@@ -1,2 +1,2 @@
-# fullstack_movie_app
+# Movie App
 A full stack movie review app 
