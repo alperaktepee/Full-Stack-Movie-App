@@ -3,7 +3,7 @@ const userRouter = require("./routes/user");
 
 const app = express();
 
-app.use(userRouter);
+app.use('/api',userRouter);
 
 app.listen(8000, () => {
   console.log("The app is running on port 8000");
