@@ -1,10 +1,13 @@
-const express = require('express');
+const express = require("express");
+require('./db');
+const userRouter = require("./routes/user");
 
-const app=express();
+const app = express();
 
-app.get('/',(req,res)=>{
-    res.send("<h1>Hello World</h1>")
-})
-app.listen(8000,()=>{
-    console.log("The app is running on port 8000")
-})
+app.use(express.json());
+
+app.use("/api/user", userRouter);
+
+app.listen(8000, () => {
+  console.log("The app is running on port 8000");
+});
