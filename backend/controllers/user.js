@@ -2,7 +2,7 @@
 const User = require("../models/user");
 
 //createUser service
-exports.createUser = async (req, res) => {
+exports.create = async (req, res) => {
   //getting req from front
   const { name, email, password } = req.body;
 
