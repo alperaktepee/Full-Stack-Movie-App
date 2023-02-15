@@ -1,7 +1,14 @@
 const express = require("express");
-const { createUser } = require("../controllers/user");
+//import controllers
+const { create } = require("../controllers/user");
+//import userValidator
+const { userValidator,validate } = require("../middleware/validator");
+
+//use Router
 const router = express.Router();
 
-router.post("/create", createUser);
+//Routing controllers
+router.post("/create",userValidator,validate, create);
 
+//export Router
 module.exports = router;
