@@ -6,6 +6,8 @@ const User = require("../models/user");
 const EmailVerificationToken = require("../models/emailVerificationToken");
 // import isValidObjectId to check user is exists or not
 const { isValidObjectId } = require("mongoose");
+// import generate OTP function
+const { generateOTP, generateMailTransporter } = require("../utils/mail");
 //createUser service
 exports.create = async (req, res) => {
   //getting req from front
@@ -21,12 +23,8 @@ exports.create = async (req, res) => {
   //save to database
   await newUser.save();
 
-  //generate 6 digit otp
-  let OTP = "";
-  for (let i = 0; i <= 5; i++) {
-    const randomValue = Math.round(Math.random() * 9);
-    OTP += randomValue;
-  }
+  //generate 6 digit otp 
+  let OTP = generateOTP();
   //store otp inside our db
   const newEmailVerificationToken = new EmailVerificationToken({
     owner: newUser._id,
@@ -35,15 +33,7 @@ exports.create = async (req, res) => {
   await newEmailVerificationToken.save();
 
   //send that otp to our user
-
-  var transport = nodemailer.createTransport({
-    host: "sandbox.smtp.mailtrap.io",
-    port: 2525,
-    auth: {
-      user: "b0826494f7efde",
-      pass: "ea318af8a39d5f",
-    },
-  });
+  var transport = generateMailTransporter()
 
   transport.sendMail({
     from: "verification@reviewapp.com",
@@ -91,14 +81,7 @@ exports.verifyEmail = async (req, res) => {
   await user.save();
 
   await EmailVerificationToken.findByIdAndDelete(token._id);
-  var transport = nodemailer.createTransport({
-    host: "sandbox.smtp.mailtrap.io",
-    port: 2525,
-    auth: {
-      user: "b0826494f7efde",
-      pass: "ea318af8a39d5f",
-    },
-  });
+  var transport = generateMailTransporter();
 
   transport.sendMail({
     from: "verification@reviewapp.com",
@@ -110,4 +93,41 @@ exports.verifyEmail = async (req, res) => {
   });
 
   res.json({ message: "Your e-mail is verified" });
+};
+
+//resend email verification
+exports.resendEmailVerification = async (req, res) => {
+  const { userId } = req.body;
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.json({ error: "User not found!" });
+  }
+  if (user.isVerified) {
+    return res.json({ error: "User is already verified" });
+  }
+
+  const alreadyHasToken = await EmailVerificationToken.findOne({
+    owner: userId,
+  });
+  if (alreadyHasToken) {
+    return res.json({
+      error: "Only after one hour you can request another token!",
+    });
+  }
+  //generate 6 digit otp
+let OTP = generateOTP()
+
+  var transport = generateMailTransporter();
+
+  transport.sendMail({
+    from: "verification@reviewapp.com",
+    to: user.email,
+    subject: "E-mail Verification",
+    html: `
+    <p>Your verification OTP</p>
+    <h1>${OTP}</h1>
+    `,
+  });
+
+  res.json({ message: "New OTP has been sent to your e-mail account!" });
 };
