@@ -8,6 +8,9 @@ const EmailVerificationToken = require("../models/emailVerificationToken");
 const { isValidObjectId } = require("mongoose");
 // import generate OTP function
 const { generateOTP, generateMailTransporter } = require("../utils/mail");
+//import global messages
+const global = require("../utils/global");
+
 //createUser service
 exports.create = async (req, res) => {
   //getting req from front
@@ -16,14 +19,19 @@ exports.create = async (req, res) => {
   //look for email is already exists or not
   const oldUser = await User.findOne({ email });
   if (oldUser) {
-    return res.status(401).json({ error: "This e-mail is already exists !" });
+    return res.json({
+      statusCode: 401,
+      message: EMAIL_EXIST,
+      isSuccess: false,
+      messageType: "INFO",
+    });
   }
   //create newUser class
   const newUser = new User({ name, email, password });
   //save to database
   await newUser.save();
 
-  //generate 6 digit otp 
+  //generate 6 digit otp
   let OTP = generateOTP();
   //store otp inside our db
   const newEmailVerificationToken = new EmailVerificationToken({
@@ -33,7 +41,7 @@ exports.create = async (req, res) => {
   await newEmailVerificationToken.save();
 
   //send that otp to our user
-  var transport = generateMailTransporter()
+  var transport = generateMailTransporter();
 
   transport.sendMail({
     from: "verification@reviewapp.com",
@@ -46,9 +54,14 @@ exports.create = async (req, res) => {
   });
 
   //send back to user
-  res.status(201).json({
-    message:
-      "Please verify your e-mail. OTP has been sent to your e-mail account!",
+  res.json({
+    statusCode: 201,
+    message: EMAIL_VERIFY,
+    isSuccess: true,
+    messageType: "INFO",
+    data: {
+      otp: OTP,
+    },
   });
 };
 
@@ -56,26 +69,51 @@ exports.create = async (req, res) => {
 exports.verifyEmail = async (req, res) => {
   const { userId, OTP } = req.body;
   if (!isValidObjectId(userId)) {
-    return res.json({ error: "Invalid user!" });
+    return res.json({
+      statusCode: 200,
+      messageType: "INFO",
+      message: INVALID_USER,
+      isSuccess: false,
+    });
   }
 
   const user = await User.findById(userId);
   if (!user) {
-    return res.json({ error: "User not found!" });
+    return res.json({
+      statusCode: 200,
+      messageType: "INFO",
+      message: USER_NOTFOUND,
+      isSuccess: false,
+    });
   }
   if (user.isVerified) {
-    return res.json({ error: "User is already verified" });
+    return res.json({
+      statusCode: 200,
+      messageType: "INFO",
+      message: VERIFIED_USER,
+      isSuccess: false,
+    });
   }
 
   const token = await EmailVerificationToken.findOne({ owner: userId });
 
   if (!token) {
-    return res.json({ error: "Token not found!" });
+    return res.json({
+      statusCode: 200,
+      messageType: "INFO",
+      message: TOKEN_NOTFOUND,
+      isSuccess: false,
+    });
   }
 
   const isMatched = await token.compareToken(OTP);
   if (!isMatched) {
-    return res.json({ error: "Please submit a valid OTP!" });
+    return res.json({
+      statusCode: 200,
+      messageType: "INFO",
+      message: VALID_OTP,
+      isSuccess: false,
+    });
   }
   user.isVerified = true;
   await user.save();
@@ -92,7 +130,12 @@ exports.verifyEmail = async (req, res) => {
   `,
   });
 
-  res.json({ message: "Your e-mail is verified" });
+  res.json({
+    statusCode: 200,
+    messageType: "INFO",
+    message: VERIFIED_EMAIL,
+    isSuccess: false,
+  });
 };
 
 //resend email verification
@@ -100,10 +143,20 @@ exports.resendEmailVerification = async (req, res) => {
   const { userId } = req.body;
   const user = await User.findById(userId);
   if (!user) {
-    return res.json({ error: "User not found!" });
+    return res.json({
+      statusCode: 200,
+      messageType: "INFO",
+      message: USER_NOTFOUND,
+      isSuccess: false,
+    });
   }
   if (user.isVerified) {
-    return res.json({ error: "User is already verified" });
+    return res.json({
+      statusCode: 200,
+      messageType: "INFO",
+      message: VERIFIED_USER,
+      isSuccess: false,
+    });
   }
 
   const alreadyHasToken = await EmailVerificationToken.findOne({
@@ -111,11 +164,14 @@ exports.resendEmailVerification = async (req, res) => {
   });
   if (alreadyHasToken) {
     return res.json({
-      error: "Only after one hour you can request another token!",
+      statusCode: 200,
+      messageType: "INFO",
+      message: TRY_AFTER_AN_HOUR,
+      isSuccess: false,
     });
   }
   //generate 6 digit otp
-let OTP = generateOTP()
+  let OTP = generateOTP();
 
   var transport = generateMailTransporter();
 
@@ -129,5 +185,10 @@ let OTP = generateOTP()
     `,
   });
 
-  res.json({ message: "New OTP has been sent to your e-mail account!" });
+  res.json({
+    statusCode: 200,
+    messageType: "INFO",
+    message: OTP_SENT,
+    isSuccess: false,
+  });
 };
